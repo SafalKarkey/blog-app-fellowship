@@ -1,0 +1,1 @@
+# CI pipeline for blog app
