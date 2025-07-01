@@ -74,8 +74,8 @@ jobs:
       #       exit 1
       #     fi
 
-      # - name: Conventional Commit Check
-      #   uses: wagoid/commitlint-github-action@v5
+      - name: Conventional Commit Check
+        uses: wagoid/commitlint-github-action@v5
 
       - name: Check for sensitive data in env files
         run: |
