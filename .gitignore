@@ -132,4 +132,4 @@ test
 
 .pgenv
 
-.exe
+*.exe
