@@ -131,3 +131,5 @@ test
 .pnp.*
 
 .pgenv
+
+.exe
