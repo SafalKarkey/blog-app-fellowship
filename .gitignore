@@ -132,6 +132,11 @@ test
 
 .pgenv
 
+
+*.exe
+
+*.out
+=======
 .exe# Logs
 logs
 *.log
