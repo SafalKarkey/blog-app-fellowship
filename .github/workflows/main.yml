@@ -71,7 +71,6 @@ jobs:
       - name: Check for sensitive data in env files
         run: |
           echo "Checking for exposed secrets in .env files..."
-          # Check if any .env files contain actual secrets (not placeholder values)
           if grep -r "sk_test_\|pk_test_\|sk_live_\|pk_live_" --include="*.env" . 2>/dev/null | grep -v "placeholder\|example\|your_key_here"; then
             echo "Found potential exposed secrets in .env files"
             exit 1
