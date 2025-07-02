@@ -133,3 +133,5 @@ test
 .pgenv
 
 *.exe
+
+*.out
