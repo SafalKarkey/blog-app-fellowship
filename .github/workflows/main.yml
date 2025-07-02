@@ -3,14 +3,42 @@ name: Docker CI build docker images and push
 on:
   push:
     branches: [dev, main]
+    paths:
+      - 'frontend/**'
+      - 'backend1/**' 
+      - 'backend2/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [dev]
     types: [opened, synchronize, reopened]
+    paths:
+      - 'frontend/**'
+      - 'backend1/**'
+      - 'backend2/**'
+      - '.github/workflows/**'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend1/**'
+              - 'backend2/**'
+
   build-frontend:
-    if: github.event_name == 'push'
-    runs-on: self-hosted
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    needs: changes
+    runs-on: v1  # frontend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
 
     steps:
@@ -44,9 +72,9 @@ jobs:
           docker push safalkarki/frontend:${{ steps.set_tag.outputs.tag }}
 
   build-backends:
-    if: github.event_name == 'push'
-    runs-on: self-hosted2
-    needs: build-frontend   # Optional: Only if you want backend to wait for frontend to finish
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    needs: changes
+    runs-on: v2   # backend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
 
     steps:
@@ -81,7 +109,7 @@ jobs:
 
   pr-checks:
     if: github.event_name == 'pull_request'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
