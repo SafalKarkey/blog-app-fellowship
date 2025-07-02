@@ -3,14 +3,42 @@ name: Docker CI build docker images and push
 on:
   push:
     branches: [dev, main]
+    paths:
+      - 'frontend/**'
+      - 'backend1/**' 
+      - 'backend2/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [dev]
     types: [opened, synchronize, reopened]
+    paths:
+      - 'frontend/**'
+      - 'backend1/**'
+      - 'backend2/**'
+      - '.github/workflows/**'
 
 jobs:
-  build-and-push:
-    if: github.event_name == 'push'
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend1/**'
+              - 'backend2/**'
+
+  build-frontend:
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    needs: changes
+    runs-on: v1  # frontend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
 
     steps:
@@ -30,11 +58,9 @@ jobs:
           elif [ "${{ github.ref_name }}" == "dev" ]; then
             echo "tag=dev-${{ github.sha }}" >> $GITHUB_OUTPUT
           else
-            # Handle any other branches (including feature branches)
             echo "tag=${{ github.ref_name }}-${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
-      # Frontend build and push
       - name: Build and Push Frontend
         run: |
           docker build \
@@ -45,13 +71,37 @@ jobs:
 
           docker push safalkarki/frontend:${{ steps.set_tag.outputs.tag }}
 
-      # Backend1 build and push
+  build-backends:
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    needs: changes
+    runs-on: v2   # backend runner
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_UNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWD }}
+
+      - name: Set Docker Tag
+        id: set_tag
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            echo "tag=v1.0.0" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "dev" ]; then
+            echo "tag=dev-${{ github.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and Push Backend1
         run: |
           docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.set_tag.outputs.tag }} ./backend1
           docker push safalkarki/backend1:${{ steps.set_tag.outputs.tag }}
 
-      # Backend2 build and push
       - name: Build and Push Backend2
         run: |
           docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.set_tag.outputs.tag }} ./backend2
