@@ -146,10 +146,13 @@ jobs:
   
   versioning:
     runs-on: ubuntu-latest
+    needs: [job1, job2]
+    if: ${{ needs.job1.result == 'success' || needs.job2.result == 'success' }}
     steps:
       - name: Semver shell
         run: |
-          wget https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
+          wget -O /usr/local/bin/semver https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
+          chmod +x /usr/local/bin/semver
           semver --version
 
       - name: Get version
