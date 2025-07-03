@@ -57,7 +57,7 @@ jobs:
           git fetch --tags
           latest_version=$(git tag --sort=-version:refname | head -n 1)
 
-          if [ -z "$latest_version"]; then
+          if [ -z "$latest_version" ]; then
             echo "No tags found, using default version 1.0.0"
             new_version=1.0.0
           elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
@@ -99,7 +99,7 @@ jobs:
           git fetch --tags
           latest_version=$(git tag --sort=-version:refname | head -n 1)
 
-          if [ -z "$latest_version"]; then
+          if [ -z "$latest_version" ]; then
             echo "No tags found, using default version 1.0.0"
             new_version=1.0.0
           elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
