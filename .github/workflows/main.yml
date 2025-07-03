@@ -54,8 +54,8 @@ jobs:
 
       - name: Semver shell
         run: |
-          sudo wget -O /usr/local/bin/semver https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
-          sudo chmod +x /usr/local/bin/semver
+          wget https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
+          chmod +x ./semver
           semver --version
 
       - name: Get version
