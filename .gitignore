@@ -270,3 +270,5 @@ test
 .pnp.*
 
 .pgenv
+
+.vscode
