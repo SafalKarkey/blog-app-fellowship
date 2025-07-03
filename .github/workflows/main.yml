@@ -50,6 +50,30 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
+      
+
+      - name: Semver shell
+        run: |
+          wget -O /usr/local/bin/semver https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
+          chmod +x /usr/local/bin/semver
+          semver --version
+
+      - name: Get version
+        id: get-version
+        run: |
+          git fetch --tags
+          latest_version=$(git tag --sort=-version:refname | head -n 1)
+
+          if [ -z "$latest_version"]; then
+            echo "No tags found, using default version 1.0.0"
+            new_version=1.0.0
+          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
+            new_version=$(semver bump patch "$latest_version")
+          else
+            new_version=$(semver bump patch "$latest_version")
+          fi
+
+          echo "New version: $new_version" >> $GITHUB_OUTPUT
         
       - name: Build and Push Frontend
         run: |
@@ -57,9 +81,9 @@ jobs:
             --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ vars.FRONTEND_VITE_CLERK_PUBLISHABLE_KEY }} \
             --build-arg VITE_URL_ADDR=${{ vars.FRONTEND_VITE_URL_ADDR }} \
             -f ./frontend/frontend.Dockerfile \
-            -t safalkarki/frontend:${{ steps.set_tag.outputs.tag }} ./frontend
+            -t safalkarki/frontend:${{ steps.get-version.outputs.new_version }} ./frontend
 
-          docker push safalkarki/frontend:${{ steps.set_tag.outputs.tag }}
+          docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
 
   build-backends:
     if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
@@ -76,26 +100,32 @@ jobs:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
-      - name: Set Docker Tag
-        id: set_tag
+      - name: Get version
+        id: get-version
         run: |
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            echo "tag=v1.0.0" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref_name }}" == "dev" ]; then
-            echo "tag=dev-${{ github.sha }}" >> $GITHUB_OUTPUT
+          git fetch --tags
+          latest_version=$(git tag --sort=-version:refname | head -n 1)
+
+          if [ -z "$latest_version"]; then
+            echo "No tags found, using default version 1.0.0"
+            new_version=1.0.0
+          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
+            new_version=$(semver bump patch "$latest_version")
           else
-            echo "tag=${{ github.ref_name }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+            new_version=$(semver bump patch "$latest_version")
           fi
+
+          echo "New version: $new_version" >> $GITHUB_OUTPUT
 
       - name: Build and Push Backend1
         run: |
-          docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.set_tag.outputs.tag }} ./backend1
-          docker push safalkarki/backend1:${{ steps.set_tag.outputs.tag }}
+          docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.get-version.outputs.new_version }} ./backend1
+          docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }}
 
       - name: Build and Push Backend2
         run: |
-          docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.set_tag.outputs.tag }} ./backend2
-          docker push safalkarki/backend2:${{ steps.set_tag.outputs.tag }}
+          docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.get-version.outputs.new_version }} ./backend2
+          docker push safalkarki/backend2:${{ steps.get-version.outputs.new_version }}
 
   pr-checks:
     if: github.event_name == 'pull_request'
@@ -143,29 +173,3 @@ jobs:
           fi
           
           echo "All required Dockerfiles found"
-  
-  versioning:
-    runs-on: ubuntu-latest
-    needs: [build-backends, build-frontend]
-    if: ${{ needs.build-backends.result == 'success' || needs.build-frontend.result == 'success' }}
-    steps:
-      - name: Semver shell
-        run: |
-          wget -O /usr/local/bin/semver https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
-          chmod +x /usr/local/bin/semver
-          semver --version
-
-      - name: Get version
-        id: get-version
-        run: |
-          git fetch --tags
-          latest_version=$(git tag --sort=-version:refname | head -n 1)
-
-          if [ -z "$latest_version"]; then
-            echo "No tags found, using default version 1.0.0"
-            new_version=1.0.0
-          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
-            new_version=$(semver bump patch "$latest_version")
-          else
-            new_version=$(semver bump patch "$latest_version")
-          fi
