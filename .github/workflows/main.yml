@@ -56,11 +56,20 @@ jobs:
           wget https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
           semver --version
 
-      - name: Get --version
+      - name: Get version
         id: get-version
         run: |
           git fetch --tags
-          latest_version: $(git tag --sort=-version:refname | head -n 1)
+          latest_version=$(git tag --sort=-version:refname | head -n 1)
+
+          if [ -z "$latest_version"]; then
+            echo "No tags found, using default version 1.0.0"
+            new_version=1.0.0
+          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
+            new_version=$(semver bump patch "$latest_version")
+          else
+            new_version=$(semver bump patch "$latest_version")
+          fi
         
       - name: Build and Push Frontend
         run: |
