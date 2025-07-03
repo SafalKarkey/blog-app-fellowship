@@ -50,26 +50,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
-
-      - name: Semver shell
-        run: |
-          wget https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
-          semver --version
-
-      - name: Get version
-        id: get-version
-        run: |
-          git fetch --tags
-          latest_version=$(git tag --sort=-version:refname | head -n 1)
-
-          if [ -z "$latest_version"]; then
-            echo "No tags found, using default version 1.0.0"
-            new_version=1.0.0
-          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
-            new_version=$(semver bump patch "$latest_version")
-          else
-            new_version=$(semver bump patch "$latest_version")
-          fi
         
       - name: Build and Push Frontend
         run: |
@@ -163,3 +143,29 @@ jobs:
           fi
           
           echo "All required Dockerfiles found"
+  
+  versioning:
+    runs-on: ubuntu-latest
+    needs: [job1, job2]
+    if: ${{ needs.job1.result == 'success' || needs.job2.result == 'success' }}
+    steps:
+      - name: Semver shell
+        run: |
+          wget -O /usr/local/bin/semver https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
+          chmod +x /usr/local/bin/semver
+          semver --version
+
+      - name: Get version
+        id: get-version
+        run: |
+          git fetch --tags
+          latest_version=$(git tag --sort=-version:refname | head -n 1)
+
+          if [ -z "$latest_version"]; then
+            echo "No tags found, using default version 1.0.0"
+            new_version=1.0.0
+          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
+            new_version=$(semver bump patch "$latest_version")
+          else
+            new_version=$(semver bump patch "$latest_version")
+          fi
