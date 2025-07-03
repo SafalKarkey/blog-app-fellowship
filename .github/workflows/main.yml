@@ -50,13 +50,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
-      
-
-      - name: Semver shell
-        run: |
-          wget https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
-          chmod +x ./semver
-          semver --version
 
       - name: Get version
         id: get-version
