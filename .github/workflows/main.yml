@@ -146,8 +146,8 @@ jobs:
   
   versioning:
     runs-on: ubuntu-latest
-    needs: [job1, job2]
-    if: ${{ needs.job1.result == 'success' || needs.job2.result == 'success' }}
+    needs: [build-backends, build-frontend]
+    if: ${{ needs.build-backends.result == 'success' || needs.build-frontend.result == 'success' }}
     steps:
       - name: Semver shell
         run: |
