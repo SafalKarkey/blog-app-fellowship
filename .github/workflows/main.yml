@@ -35,8 +35,9 @@ jobs:
               - 'backend1/**'
               - 'backend2/**'
 
+
   build-frontend:
-    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true'
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true' # if this condition is true, run this job otherwise skip it
     needs: changes
     runs-on: v1  # frontend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
@@ -50,17 +51,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
-      - name: Set Docker Tag
-        id: set_tag
+      - name: Semver shell
         run: |
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            echo "tag=v1.0.0" >> $GITHUB_OUTPUT
-          elif [ "${{ github.ref_name }}" == "dev" ]; then
-            echo "tag=dev-${{ github.sha }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${{ github.ref_name }}-${{ github.sha }}" >> $GITHUB_OUTPUT
-          fi
+          wget https://raw.githubusercontent.com/fsaintjacques/semver-tool/master/src/semver
+          semver --version
 
+      - name: Get --version
+        id: get-version
+        run: |
+          git fetch --tags
+          latest_version: $(git tag --sort=-version:refname | head -n 1)
+        
       - name: Build and Push Frontend
         run: |
           docker build \
