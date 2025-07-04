@@ -103,7 +103,7 @@ jobs:
             echo "No tags found, using default version 1.0.0"
             new_version=1.0.0
           elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
-            new_version=$(semver bump patch "$latest_version")
+            new_version=$(semver bump minor "$latest_version")
           else
             new_version=$(semver bump patch "$latest_version")
           fi
