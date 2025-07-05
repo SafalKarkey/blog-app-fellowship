@@ -258,7 +258,7 @@ jobs:
             -e DB_NAME=${{ vars.BACKEND1_DB_NAME }} \
             -e DB_CLIENT=${{ vars.BACKEND1_DB_CLIENT }} \
             -e NODE_ENV=${{ vars.BACKEND1_NODE_ENV }} \
-            -e CLERK_PUBLISHABLE_KEY=${{ secret.BACKEND1_CLERK_PUBLISHABLE_KEY }} \
+            -e CLERK_PUBLISHABLE_KEY=${{ secrets.BACKEND1_CLERK_PUBLISHABLE_KEY }} \
             -e CLERK_SECRET_KEY=${{ secrets.BACKEND1_CLERK_SECRET_KEY }} \
             safalkarki/backend1:${{ needs.build-backends.outputs.new_version }} 
 
@@ -272,7 +272,7 @@ jobs:
             -e DB_NAME=${{ vars.BACKEND2_DB_NAME }} \
             -e DB_CLIENT=${{ vars.BACKEND2_DB_CLIENT }} \
             -e NODE_ENV=${{ vars.BACKEND2_NODE_ENV }} \
-            -e CLERK_PUBLISHABLE_KEY=${{ secret.BACKEND2_CLERK_PUBLISHABLE_KEY }} \
+            -e CLERK_PUBLISHABLE_KEY=${{ secrets.BACKEND2_CLERK_PUBLISHABLE_KEY }} \
             -e CLERK_SECRET_KEY=${{ secrets.BACKEND2_CLERK_SECRET_KEY }} \
             safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
 
