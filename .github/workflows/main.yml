@@ -75,7 +75,18 @@ jobs:
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
           echo "Using version: $new_version"
         
+      - name: Cache Frontend Build
+        id: cache-frontend-build
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.build-cache
+          key: ${{ runner.os }}-frontend-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-build
+
+
       - name: Build and Push Frontend
+        if: steps.cache-frontend-build.outputs.cache-hit != 'true'
         run: |
           docker build \
             --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ vars.FRONTEND_VITE_CLERK_PUBLISHABLE_KEY }} \
@@ -125,7 +136,17 @@ jobs:
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
           echo "Using version: $new_version"
 
+      - name: Cache Backend Build
+        id: cache-backend-build
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.build-cache-backend
+          key: ${{ runner.os }}-backend-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-backend-build
+
       - name: Build and Push Backend1
+        if: steps.cache-backend-build.outputs.cache-hit != 'true'
         run: |
           docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.get-version.outputs.new_version }} ./backend1
           docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }}
