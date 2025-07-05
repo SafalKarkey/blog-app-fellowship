@@ -233,7 +233,7 @@ jobs:
 
   deploy:
     needs: [build-frontend, build-backends]
-    if: github.ref == 'refs/heads/dev' && needs.build-frontend.result != 'failure' || needs.build-backends.result != 'failure'
+    if: github.ref == 'refs/heads/dev'
     runs-on: v1
     steps:
       - uses: appleboy/ssh-action@v1
