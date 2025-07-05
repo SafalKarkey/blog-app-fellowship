@@ -80,7 +80,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: frontend/node_modules
-          key: ${{ runner.os }}-frontend-dep-${{ hashFiles('frontend/package-lock.json') }}
+          key: ${{ runner.os }}-frontend-dep-${{ hashFiles('frontend/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-frontend-dep
 
@@ -154,7 +154,7 @@ jobs:
           path: |
             backend1/node_modules
             backend2/node_modules
-          key: ${{ runner.os }}-backend-dep-${{ hashFiles('backend1/package-lock.json', 'backend2/package-lock.json') }}
+          key: ${{ runner.os }}-backend-dep-${{ hashFiles('backend1/yarn.lock', 'backend2/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-backend-dep
 
