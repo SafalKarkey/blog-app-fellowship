@@ -102,8 +102,8 @@ jobs:
         # if: steps.cache-frontend-build.outputs.cache-hit != 'true'
         run: |
           docker build \
-            --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ vars.FRONTEND_VITE_CLERK_PUBLISHABLE_KEY }} \
-            --build-arg VITE_URL_ADDR=${{ vars.FRONTEND_VITE_URL_ADDR }} \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ vars.VITE_CLERK_PUBLISHABLE_KEY }} \
+            --build-arg VITE_URL_ADDR=${{ vars.VITE_URL_ADDR }} \
             -f ./frontend/frontend.Dockerfile \
             -t safalkarki/frontend:${{ steps.get-version.outputs.new_version }} ./frontend
 
@@ -248,6 +248,10 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             echo "Deploying to server..."
+
+            docker stop frontend backend1 backend2 2>/dev/null || true
+            docker rm frontend backend1 backend2 2>/dev/null || true
+
             echo "Frontend version: ${{ needs.build-frontend.outputs.new_version }}"
             echo "Backend1 version: ${{ needs.build-backends.outputs.new_version }}"
             echo "Backend2 version: ${{ needs.build-backends.outputs.new_version }}"
