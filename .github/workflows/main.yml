@@ -86,7 +86,7 @@ jobs:
 
       - name: Build Frontend App
         run: |
-          yarn --cwd frontend install
+          yarn --cwd frontend install --network-timeout 600000
           yarn --cwd frontend build
 
       - name: Upload Frontend Build Artifacts
@@ -160,9 +160,9 @@ jobs:
 
       - name: Build Backend App
         run: |
-          yarn --cwd backend1 install
+          yarn --cwd backend1 install --network-timeout 600000
           yarn --cwd backend1 build
-          yarn --cwd backend2 install
+          yarn --cwd backend2 install --network-timeout 600000
           yarn --cwd backend2 build
 
       - name: Upload Backend Build Artifacts
