@@ -232,7 +232,7 @@ jobs:
           echo "All required Dockerfiles found"
 
   deploy:
-    # needs: [build-frontend, build-backends]
+    needs: [build-frontend, build-backends]
     if: github.ref_name == 'dev'
     runs-on: v1
     steps:
