@@ -244,6 +244,10 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             echo "Deploying to server..."
+            echo "Frontend version: ${{ needs.build-frontend.outputs.new_version }}"
+            echo "Backend1 version: ${{ needs.build-backends.outputs.new_version }}"
+            echo "Backend2 version: ${{ needs.build-backends.outputs.new_version }}"
+
             docker pull safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
             docker pull safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}
             docker pull safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
