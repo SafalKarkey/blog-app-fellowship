@@ -41,6 +41,8 @@ jobs:
     needs: changes
     runs-on: v1  # frontend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    outputs:
+      new_version: ${{ steps.get-version.outputs.new_version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -112,6 +114,8 @@ jobs:
     needs: changes
     runs-on: v2   # backend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    outputs:
+      new_version: ${{ steps.get-version.outputs.new_version }}
 
     steps:
       - uses: actions/checkout@v3
