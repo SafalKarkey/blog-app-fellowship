@@ -90,7 +90,7 @@ jobs:
           yarn --cwd frontend build
 
       - name: Upload Frontend Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-build-${{ steps.get-version.outputs.new_version }}
           path: frontend/dist/
@@ -166,7 +166,7 @@ jobs:
           yarn --cwd backend2 build
 
       - name: Upload Backend Build Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: backend-build-${{ steps.get-version.outputs.new_version }}
           path: |
