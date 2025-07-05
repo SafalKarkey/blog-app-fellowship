@@ -230,3 +230,26 @@ jobs:
           fi
           
           echo "All required Dockerfiles found"
+
+  deploy:
+    needs: [build-frontend, build-backends]
+    if: github.ref == 'refs/heads/dev' && needs.build-frontend.result == 'success' && needs.build-backends.result == 'success'
+    runs-on: v1
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          hosts: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            echo "Deploying to server..."
+            docker pull safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
+            docker pull safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}
+            docker pull safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
+
+            docker run -d --name frontend -p 80:80 safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
+            docker run -d --name backend1 -p 3000:3000 safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}
+            docker run -d --name backend2 -p 3001:3001 safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
+
+            echo "Deployment completed successfully"
