@@ -173,15 +173,6 @@ jobs:
             backend1/dist/
             backend2/dist/
 
-      - name: Cache Backend Build
-        id: cache-backend-build
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.build-cache-backend
-          key: ${{ runner.os }}-backend-build-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-backend-build
-
       - name: Build and Push Backend1
         if: steps.cache-backend-build.outputs.cache-hit != 'true'
         run: |
