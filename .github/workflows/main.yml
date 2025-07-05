@@ -54,19 +54,26 @@ jobs:
       - name: Get version
         id: get-version
         run: |
-          git fetch --tags
-          latest_version=$(git tag --sort=-version:refname | head -n 1)
-
-          if [ -z "$latest_version" ]; then
-            echo "No tags found, using default version 1.0.0"
-            new_version=1.0.0
-          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
-            new_version=$(semver bump patch "$latest_version")
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            git fetch --tags
+            latest_version=$(git tag --sort=-version:refname | head -n 1)
+            
+            if [ -z "$latest_version" ]; then
+              echo "Using default version 1.0.0 because no tags were found"
+              new_version="1.0.0"
+            else
+              new_version=$(semver bump patch "$latest_version")
+            fi
+            
+            git tag "$new_version"
+            git push origin "$new_version"
+            
           else
-            new_version=$(semver bump patch "$latest_version")
+            new_version="${{ github.ref_name }}-${{ github.sha }}"
           fi
-
-          echo "New version: $new_version" >> $GITHUB_OUTPUT
+          
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "Using version: $new_version"
         
       - name: Build and Push Frontend
         run: |
@@ -96,19 +103,27 @@ jobs:
       - name: Get version
         id: get-version
         run: |
-          git fetch --tags
-          latest_version=$(git tag --sort=-version:refname | head -n 1)
-
-          if [ -z "$latest_version" ]; then
-            echo "No tags found, using default version 1.0.0"
-            new_version=1.0.0
-          elif [[ ${{ github.head_ref }}  =~ ^"feature" ]]; then
-            new_version=$(semver bump minor "$latest_version")
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            git fetch --tags
+            latest_version=$(git tag --sort=-version:refname | head -n 1)
+            
+            if [ -z "$latest_version" ]; then
+              echo "Using default version 1.0.0 because no tags were found"
+              new_version="1.0.0"
+            else
+              new_version=$(semver bump patch "$latest_version")
+            fi
+            
+            # Create and push the new tag
+            git tag "$new_version"
+            git push origin "$new_version"
+            
           else
-            new_version=$(semver bump patch "$latest_version")
+            new_version="${{ github.ref_name }}-${{ github.sha }}"
           fi
-
-          echo "New version: $new_version" >> $GITHUB_OUTPUT
+          
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "Using version: $new_version"
 
       - name: Build and Push Backend1
         run: |
