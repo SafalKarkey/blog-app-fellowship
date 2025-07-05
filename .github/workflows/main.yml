@@ -74,19 +74,26 @@ jobs:
           
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
           echo "Using version: $new_version"
-
-      - name: Create Frontend Cache Directory
-        run: |
-          mkdir -p /tmp/.build-cache
         
       - name: Cache Frontend Build
         id: cache-frontend-build
         uses: actions/cache@v4
         with:
-          path: /tmp/.build-cache
-          key: ${{ runner.os }}-frontend-build-${{ github.sha }}
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-dep-${{ hashFiles('frontend/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-frontend-build
+            ${{ runner.os }}-frontend-dep
+
+      - name: Build Frontend App
+        run: |
+          yarn --cwd frontend install
+          yarn --cwd frontend build
+
+      - name: Upload Frontend Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build-${{ steps.get-version.outputs.new_version }}
+          path: frontend/dist/
 
 
       - name: Build and Push Frontend
@@ -139,10 +146,32 @@ jobs:
           
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
           echo "Using version: $new_version"
+      
+      - name: Cache Backend Build
+        id: cache-backend-build
+        uses: actions/cache@v4
+        with: 
+          path: |
+            backend1/node_modules
+            backend2/node_modules
+          key: ${{ runner.os }}-backend-dep-${{ hashFiles('backend1/package-lock.json', 'backend2/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-dep
 
-      - name: Create Backend Cache Directory
+      - name: Build Backend App
         run: |
-          mkdir -p /tmp/.build-cache-backend
+          yarn --cwd backend1 install
+          yarn --cwd backend1 build
+          yarn --cwd backend2 install
+          yarn --cwd backend2 build
+
+      - name: Upload Backend Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build-${{ steps.get-version.outputs.new_version }}
+          path: |
+            backend1/dist/
+            backend2/dist/
 
       - name: Cache Backend Build
         id: cache-backend-build
