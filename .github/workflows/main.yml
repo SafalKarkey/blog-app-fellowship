@@ -324,3 +324,18 @@ jobs:
             safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
 
             echo "Deployment completed successfully"
+
+  create-release:
+      needs: [build-frontend, build-backends]
+      if: github.ref_name == 'main'
+      runs-on: ubuntu-latest
+      steps:
+        - name: Create GitHub Release
+          uses: softprops/action-gh-release@v1
+          with:
+            tag_name: ${{ needs.build-frontend.outputs.new_version }}
+            name: Release ${{ needs.build-frontend.outputs.new_version }}
+            draft: false
+            prerelease: false
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
