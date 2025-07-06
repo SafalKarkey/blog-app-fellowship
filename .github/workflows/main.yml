@@ -296,6 +296,7 @@ jobs:
 
             docker run -d --name frontend -p 80:80 safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
             docker run -d --name backend1 -p 3000:3000 \
+            --network my-backend-network \
             -e PORT=${{ vars.BACKEND1_PORT }} \
             -e DB_PORT=${{ vars.DB_PORT }} \
             -e DB_HOST=${{ vars.DB_HOST }} \
@@ -310,6 +311,7 @@ jobs:
 
 
             docker run -d --name backend2 -p 3001:3001 \
+            --network my-backend-network \
             -e PORT=${{ vars.BACKEND2_PORT }} \
             -e DB_PORT=${{ vars.DB_PORT }} \
             -e DB_HOST=${{ vars.DB_HOST }} \
