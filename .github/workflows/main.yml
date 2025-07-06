@@ -67,8 +67,16 @@ jobs:
               new_version=$(semver bump patch "$latest_version")
             fi
             
-            git tag "$new_version"
-            git push origin "$new_version"
+            # git tag "$new_version"
+            # git push origin "$new_version"
+
+            if git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
+              echo "Tag $new_version already exists. Skipping tagging."
+            else
+              git tag "$new_version"
+              git push origin "$new_version"
+            fi
+
             
           else
             new_version="${{ github.ref_name }}-${{ github.sha }}"
@@ -140,8 +148,12 @@ jobs:
               new_version=$(semver bump patch "$latest_version")
             fi
             
-            git tag "$new_version"
-            git push origin "$new_version"
+            if git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
+              echo "Tag $new_version already exists. Skipping tagging."
+            else
+              git tag "$new_version"
+              git push origin "$new_version"
+            fi
             
           else
             new_version="${{ github.ref_name }}-${{ github.sha }}"
