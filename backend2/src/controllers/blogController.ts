@@ -9,20 +9,16 @@ function getClerkUserId(req: Request): string | undefined {
 
 export const createBlog = async (req: Request, res: Response, next: NextFunction) => {
   const { title, content } = req.body;
-  const authorId = getClerkUserId(req) || "test-user-id"; // temporary fallback
+  const authorId = getClerkUserId(req);
 
-  if (!title || !content) {
-    res.status(400).json({ error: "Missing required fields: title and content" });
+  if (!title || !content || !authorId) {
+    res.status(400).json({ error: "Missing required fields" });
     return;
   }
-  
-  console.log("Creating blog with:", { title, content, authorId });
-  
   try {
     const blog = await blogService.createBlogPost(title, content, authorId);
     res.status(201).json(blog);
   } catch (err) {
-    console.error("Error creating blog:", err);
     next(err);
   }
 };
