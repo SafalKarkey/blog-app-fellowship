@@ -242,6 +242,7 @@ jobs:
     steps:
       - name: Use PostgreSQL Docker images
         run: |
+          docker rm -f postgres >/dev/null 2>&1 || true
           docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
 
           docker run -d --rm --init \
