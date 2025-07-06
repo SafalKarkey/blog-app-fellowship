@@ -1,0 +1,73 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Migration action'
+        required: true
+        default: 'migrate'
+        type: choice
+        options:
+          - migrate
+          - rollback
+      
+      backend:
+        description: 'Select backend'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - backend1
+          - backend2
+          - both
+        
+      rollback_version:
+        description: 'Which version to rollback to'
+        required: false
+        type: string
+    
+
+jobs:
+  migrate-backend1:
+    if: ${{ github.event.inputs.backend == 'backend1' || github.event.inputs.backend == 'both' }}
+    runs-on: migrate-runner
+    environment: ${{ github.ref_name == 'main' && 'dev' }}
+    steps:
+      - name: Run Migrations
+        if: github.event.inputs.action == 'migrate'
+        run: |
+          docker exec backend1 yarn migrate
+        
+      - name: Rollback migration in backend1 container
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          version="${{ github.event.inputs.rollback_version }}"
+          if [ -z "$version" ]; then
+            docker exec backend1 yarn rollback
+          else
+            docker exec backend1 yarn rollback $version
+          fi
+  
+
+  migrate-backend2:
+    if: github.event.inputs.backend == 'backend2' || github.event.inputs.backend == 'both'
+    runs-on: migrate-runner
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    steps:
+      - name: Run migrations
+        if: github.event.inputs.action == 'migrate'
+        run: |
+          docker exec backend2 yarn migrate
+
+      - name: Rollback migration in backend2 container
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          version="${{ github.event.inputs.rollback_version }}"
+          if [ -z "$version" ]; then
+            docker exec backend2 yarn rollback
+          else
+            docker exec backend2 yarn rollback $version
+          fi
+          
+

@@ -1,0 +1,326 @@
+name: Docker CI build docker images and push
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'frontend/**'
+      - 'backend1/**' 
+      - 'backend2/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [dev]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'frontend/**'
+      - 'backend1/**'
+      - 'backend2/**'
+      - '.github/workflows/**'
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend1/**'
+              - 'backend2/**'
+
+
+  build-frontend:
+    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true' # if this condition is true, run this job otherwise skip it
+    needs: changes
+    runs-on: v1  # frontend runner
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    outputs:
+      new_version: ${{ steps.get-version.outputs.new_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_UNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWD }}
+
+      - name: Get version
+        id: get-version
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            git fetch --tags
+            latest_version=$(git tag --sort=-version:refname | head -n 1)
+            
+            if [ -z "$latest_version" ]; then
+              echo "Using default version 1.0.0 because no tags were found"
+              new_version="1.0.0"
+            else
+              new_version=$(semver bump patch "$latest_version")
+            fi
+            
+            git tag "$new_version"
+            git push origin "$new_version"
+            
+          else
+            new_version="${{ github.ref_name }}-${{ github.sha }}"
+          fi
+          
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "Using version: $new_version"
+        
+      - name: Cache Frontend Build
+        id: cache-frontend-build
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-dep-${{ hashFiles('frontend/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-dep
+
+      - name: Build Frontend App
+        run: |
+          yarn --cwd frontend install --network-timeout 600000
+          yarn --cwd frontend build
+
+      - name: Upload Frontend Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-${{ steps.get-version.outputs.new_version }}
+          path: frontend/dist/
+
+
+      - name: Build and Push Frontend
+        # if: steps.cache-frontend-build.outputs.cache-hit != 'true'
+        run: |
+          docker build \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ vars.VITE_CLERK_PUBLISHABLE_KEY }} \
+            --build-arg VITE_URL_ADDR=${{ vars.VITE_URL_ADDR }} \
+            -f ./frontend/frontend.Dockerfile \
+            -t safalkarki/frontend:${{ steps.get-version.outputs.new_version }} ./frontend
+
+          docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
+
+  build-backends:
+    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    needs: changes
+    runs-on: v2   # backend runner
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    outputs:
+      new_version: ${{ steps.get-version.outputs.new_version }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_UNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWD }}
+
+      - name: Get version
+        id: get-version
+        run: |
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            git fetch --tags
+            latest_version=$(git tag --sort=-version:refname | head -n 1)
+            
+            if [ -z "$latest_version" ]; then
+              echo "Using default version 1.0.0 because no tags were found"
+              new_version="1.0.0"
+            else
+              new_version=$(semver bump patch "$latest_version")
+            fi
+            
+            git tag "$new_version"
+            git push origin "$new_version"
+            
+          else
+            new_version="${{ github.ref_name }}-${{ github.sha }}"
+          fi
+          
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "Using version: $new_version"
+      
+      - name: Cache Backend Build
+        id: cache-backend-build
+        uses: actions/cache@v4
+        with: 
+          path: |
+            backend1/node_modules
+            backend2/node_modules
+          key: ${{ runner.os }}-backend-dep-${{ hashFiles('backend1/yarn.lock', 'backend2/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-dep
+
+      - name: Build Backend App
+        run: |
+          yarn --cwd backend1 install --network-timeout 600000
+          yarn --cwd backend1 build
+          yarn --cwd backend2 install --network-timeout 600000
+          yarn --cwd backend2 build
+
+      - name: Upload Backend Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build-${{ steps.get-version.outputs.new_version }}
+          path: |
+            backend1/dist/
+            backend2/dist/
+
+      - name: Build and Push Backend1
+        # if: steps.cache-backend-build.outputs.cache-hit != 'true'
+        run: |
+          docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.get-version.outputs.new_version }} ./backend1
+          docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }}
+
+      - name: Build and Push Backend2
+        run: |
+          docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.get-version.outputs.new_version }} ./backend2
+          docker push safalkarki/backend2:${{ steps.get-version.outputs.new_version }}
+
+  pr-checks:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Conventional Commit Check
+        uses: wagoid/commitlint-github-action@v5
+
+      - name: Check for sensitive data in env files
+        run: |
+          echo "Checking for exposed secrets in .env files..."
+          if grep -r "sk_test_\|pk_test_\|sk_live_\|pk_live_" --include="*.env" . 2>/dev/null | grep -v "placeholder\|example\|your_key_here"; then
+            echo "Found potential exposed secrets in .env files"
+            exit 1
+          else
+            echo "No exposed secrets found"
+          fi
+
+      - name: Dockerfile existence check
+        run: |
+          echo "Checking if required Dockerfiles exist..."
+          missing_files=0
+          
+          if [[ ! -f "./frontend/frontend.Dockerfile" ]]; then
+            echo "frontend/frontend.Dockerfile not found"
+            missing_files=1
+          fi
+          
+          if [[ ! -f "./backend1/backend1.Dockerfile" ]]; then
+            echo "backend1/backend1.Dockerfile not found"
+            missing_files=1
+          fi
+          
+          if [[ ! -f "./backend2/backend2.Dockerfile" ]]; then
+            echo "backend2/backend2.Dockerfile not found"
+            missing_files=1
+          fi
+          
+          if [ $missing_files -eq 1 ]; then
+            exit 1
+          fi
+          
+          echo "All required Dockerfiles found"
+
+  # run-pg:
+  #   needs: [build-frontend, build-backends]
+  #   if: github.ref_name == 'dev'
+  #   runs-on: v2
+  #   steps:
+  #     - name: Use PostgreSQL Docker images
+  #       run: |
+  #         docker rm -f postgres >/dev/null 2>&1 || true
+  #         docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+
+  #         docker run -d --rm --init \
+  #         --name postgres \
+  #         --network my-backend-network \
+  #         -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+  #         -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+  #         -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+  #         -v pgdata:/var/lib/postgresql/data \
+  #         -p 5432:5432 \
+  #         postgres:latest
+
+  deploy:
+    needs: [build-frontend, build-backends]
+    if: github.ref_name == 'dev'
+    runs-on: v1
+    steps:
+      - uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            echo "Starting postgres.."
+            docker rm -f postgres >/dev/null 2>&1 || true
+            docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+
+            docker run -d --rm --init \
+            --name postgres \
+            --network my-backend-network \
+            -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+            -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+            -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+            -v pgdata:/var/lib/postgresql/data \
+            -p 5432:5432 \
+            postgres:latest
+
+            echo "Deploying to server..."
+
+            docker stop frontend backend1 backend2 2>/dev/null || true
+            docker rm frontend backend1 backend2 2>/dev/null || true
+
+            echo "Frontend version: ${{ needs.build-frontend.outputs.new_version }}"
+            echo "Backend1 version: ${{ needs.build-backends.outputs.new_version }}"
+            echo "Backend2 version: ${{ needs.build-backends.outputs.new_version }}"
+
+            docker pull safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
+            docker pull safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}
+            docker pull safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
+
+            docker run -d --name frontend -p 80:80 safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
+            docker run -d --name backend1 -p 3000:3000 \
+            --network my-backend-network \
+            -e PORT=${{ vars.BACKEND1_PORT }} \
+            -e DB_PORT=${{ vars.DB_PORT }} \
+            -e DB_HOST=${{ vars.DB_HOST }} \
+            -e DB_USER=${{ secrets.BACKEND1_DB_USER }} \
+            -e DB_PASSWORD=${{ secrets.BACKEND1_DB_PASSWORD }} \
+            -e DB_NAME=${{ vars.DB_NAME }} \
+            -e DB_CLIENT=${{ vars.DB_CLIENT }} \
+            -e NODE_ENV=${{ vars.NODE_ENV }} \
+            -e CLERK_PUBLISHABLE_KEY=${{ secrets.BACKEND1_CLERK_PUBLISHABLE_KEY }} \
+            -e CLERK_SECRET_KEY=${{ secrets.BACKEND1_CLERK_SECRET_KEY }} \
+            safalkarki/backend1:${{ needs.build-backends.outputs.new_version }} 
+
+
+            docker run -d --name backend2 -p 3001:3001 \
+            --network my-backend-network \
+            -e PORT=${{ vars.BACKEND2_PORT }} \
+            -e DB_PORT=${{ vars.DB_PORT }} \
+            -e DB_HOST=${{ vars.DB_HOST }} \
+            -e DB_USER=${{ secrets.BACKEND2_DB_USER }} \
+            -e DB_PASSWORD=${{ secrets.BACKEND2_DB_PASSWORD }} \
+            -e DB_NAME=${{ vars.DB_NAME }} \
+            -e DB_CLIENT=${{ vars.DB_CLIENT }} \
+            -e NODE_ENV=${{ vars.NODE_ENV }} \
+            -e CLERK_PUBLISHABLE_KEY=${{ secrets.BACKEND2_CLERK_PUBLISHABLE_KEY }} \
+            -e CLERK_SECRET_KEY=${{ secrets.BACKEND2_CLERK_SECRET_KEY }} \
+            safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
+
+            echo "Deployment completed successfully"
