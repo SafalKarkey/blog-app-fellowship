@@ -31,7 +31,7 @@ on:
 jobs:
   migrate-backend1:
     if: ${{ github.event.inputs.backend == 'backend1' || github.event.inputs.backend == 'both' }}
-    runs-on: v1
+    runs-on: v2
     environment: ${{ github.ref_name == 'main' && 'dev' }}
     steps:
       - name: Run Migrations
@@ -66,7 +66,7 @@ jobs:
 
   migrate-backend2:
     if: github.event.inputs.backend == 'backend2' || github.event.inputs.backend == 'both'
-    runs-on: ubuntu-latest
+    runs-on: v2
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     steps:    
       - name: Run Migrations
