@@ -95,9 +95,12 @@ jobs:
             ${{ runner.os }}-frontend-dep
 
       - name: Build Frontend App
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_URL_ADDR: ${{ vars.VITE_URL_ADDR }}
         run: |
           yarn --cwd frontend install --network-timeout 600000
-          yarn --cwd frontend build
+          yarn --cwd frontend build 
 
       - name: Upload Frontend Build Artifacts
         uses: actions/upload-artifact@v4
