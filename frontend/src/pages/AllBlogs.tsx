@@ -54,7 +54,7 @@ const AllBlogs: React.FC = () => {
                         {error}
                     </Typography>
                 )}
-                {blogs.length === 0 && !loading && (
+                {(!blogs || blogs.length === 0) && !loading && (
                     <Paper sx={{ p: 4, textAlign: "center" }}>
                         <Typography variant="h6">No blogs found.</Typography>
                     </Paper>
@@ -67,7 +67,7 @@ const AllBlogs: React.FC = () => {
                     alignItems="stretch"
                     sx={{ mt: 2 }}
                 >
-                    {blogs.map((blog) => (
+                    {Array.isArray(blogs) && blogs.map((blog) => (
                         <Box
                             key={blog.id}
                             sx={{

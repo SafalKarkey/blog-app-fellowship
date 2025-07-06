@@ -225,7 +225,7 @@ const SingleBlog: React.FC = () => {
                             </ListSubheader>
                         }
                     >
-                        {comments && comments.length > 0
+                        {Array.isArray(comments) && comments.length > 0
                             ? comments.map((c) => (
                                 <ListItem alignItems="flex-start" key={c.id}>
                                     <Avatar sx={{ mr: 2 }}>

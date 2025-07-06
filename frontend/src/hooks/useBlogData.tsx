@@ -57,7 +57,11 @@ export function useBlogComments(id?: string) {
     setLoading(true);
     axios
       .get(`${COMMENTS_API}/${id}`)
-      .then((res) => setComments(res.data))
+      .then((res) => {
+        // Ensure response data is an array
+        const data = Array.isArray(res.data) ? res.data : [];
+        setComments(data);
+      })
       .catch((err) => setError(err.response?.data?.error || err.message))
       .finally(() => setLoading(false));
   }, [id]);
@@ -74,7 +78,11 @@ export function useAllBlogs() {
     setLoading(true);
     axios
       .get(BLOG_API)
-      .then((res) => setBlogs(res.data))
+      .then((res) => {
+        // Ensure response data is an array
+        const data = Array.isArray(res.data) ? res.data : [];
+        setBlogs(data);
+      })
       .catch((err) => setError(err.response?.data?.error || err.message))
       .finally(() => setLoading(false));
   }, []);
