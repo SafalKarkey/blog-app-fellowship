@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { createBlog, getAllBlogs, getBlog } from '../controllers/blogController';
 // Import your Clerk (or auth) middleware
-import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
+// import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
 
 const router = Router();
 
