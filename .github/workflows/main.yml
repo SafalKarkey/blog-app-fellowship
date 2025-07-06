@@ -235,6 +235,26 @@ jobs:
           
           echo "All required Dockerfiles found"
 
+  # run-pg:
+  #   needs: [build-frontend, build-backends]
+  #   if: github.ref_name == 'dev'
+  #   runs-on: v2
+  #   steps:
+  #     - name: Use PostgreSQL Docker images
+  #       run: |
+  #         docker rm -f postgres >/dev/null 2>&1 || true
+  #         docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+
+  #         docker run -d --rm --init \
+  #         --name postgres \
+  #         --network my-backend-network \
+  #         -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+  #         -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+  #         -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+  #         -v pgdata:/var/lib/postgresql/data \
+  #         -p 5432:5432 \
+  #         postgres:latest
+
   deploy:
     needs: [build-frontend, build-backends]
     if: github.ref_name == 'dev'
@@ -247,6 +267,20 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            echo "Starting postgres.."
+            docker rm -f postgres >/dev/null 2>&1 || true
+            docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+
+            docker run -d --rm --init \
+            --name postgres \
+            --network my-backend-network \
+            -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+            -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+            -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+            -v pgdata:/var/lib/postgresql/data \
+            -p 5432:5432 \
+            postgres:latest
+
             echo "Deploying to server..."
 
             docker stop frontend backend1 backend2 2>/dev/null || true
@@ -263,13 +297,13 @@ jobs:
             docker run -d --name frontend -p 80:80 safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
             docker run -d --name backend1 -p 3000:3000 \
             -e PORT=${{ vars.BACKEND1_PORT }} \
-            -e DB_PORT=${{ vars.BACKEND1_DB_PORT }} \
-            -e DB_HOST=${{ vars.BACKEND1_DB_HOST }} \
+            -e DB_PORT=${{ vars.DB_PORT }} \
+            -e DB_HOST=${{ vars.DB_HOST }} \
             -e DB_USER=${{ secrets.BACKEND1_DB_USER }} \
             -e DB_PASSWORD=${{ secrets.BACKEND1_DB_PASSWORD }} \
-            -e DB_NAME=${{ vars.BACKEND1_DB_NAME }} \
-            -e DB_CLIENT=${{ vars.BACKEND1_DB_CLIENT }} \
-            -e NODE_ENV=${{ vars.BACKEND1_NODE_ENV }} \
+            -e DB_NAME=${{ vars.DB_NAME }} \
+            -e DB_CLIENT=${{ vars.DB_CLIENT }} \
+            -e NODE_ENV=${{ vars.NODE_ENV }} \
             -e CLERK_PUBLISHABLE_KEY=${{ secrets.BACKEND1_CLERK_PUBLISHABLE_KEY }} \
             -e CLERK_SECRET_KEY=${{ secrets.BACKEND1_CLERK_SECRET_KEY }} \
             safalkarki/backend1:${{ needs.build-backends.outputs.new_version }} 
@@ -277,13 +311,13 @@ jobs:
 
             docker run -d --name backend2 -p 3001:3001 \
             -e PORT=${{ vars.BACKEND2_PORT }} \
-            -e DB_PORT=${{ vars.BACKEND2_DB_PORT }} \
-            -e DB_HOST=${{ vars.BACKEND2_DB_HOST }} \
+            -e DB_PORT=${{ vars.DB_PORT }} \
+            -e DB_HOST=${{ vars.DB_HOST }} \
             -e DB_USER=${{ secrets.BACKEND2_DB_USER }} \
             -e DB_PASSWORD=${{ secrets.BACKEND2_DB_PASSWORD }} \
-            -e DB_NAME=${{ vars.BACKEND2_DB_NAME }} \
-            -e DB_CLIENT=${{ vars.BACKEND2_DB_CLIENT }} \
-            -e NODE_ENV=${{ vars.BACKEND2_NODE_ENV }} \
+            -e DB_NAME=${{ vars.DB_NAME }} \
+            -e DB_CLIENT=${{ vars.DB_CLIENT }} \
+            -e NODE_ENV=${{ vars.NODE_ENV }} \
             -e CLERK_PUBLISHABLE_KEY=${{ secrets.BACKEND2_CLERK_PUBLISHABLE_KEY }} \
             -e CLERK_SECRET_KEY=${{ secrets.BACKEND2_CLERK_SECRET_KEY }} \
             safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
