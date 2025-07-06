@@ -18,6 +18,6 @@ COPY ./ ./
 
 RUN --mount=type=secret,id=dotenv
 
-CMD ["sh", "-c", "yarn migrate && yarn start"]
+CMD ["sh", "-c", "yarn start"]
 
 
