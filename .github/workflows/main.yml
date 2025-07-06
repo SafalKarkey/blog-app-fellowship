@@ -357,3 +357,68 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: dist
+
+  trivy-scan:
+    if: github.ref_name == 'main'
+    needs: [build-frontend, build-backends]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner on Frontend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}'
+          format: 'template'
+          template: '@/contrib/html.tpl'
+          output: 'frontend-scan.html'
+
+      - name: Run Trivy vulnerability scanner on Backend1 image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}'
+          format: 'template'
+          template: '@/contrib/html.tpl'
+          output: 'backend1-scan.html'
+
+      - name: Run Trivy vulnerability scanner on Backend2 image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}'
+          format: 'template'
+          template: '@/contrib/html.tpl'
+          output: 'backend2-scan.html'
+
+      - name: Move scan reports to directory
+        run: |
+          mkdir -p scan-reports
+          mv frontend-scan.html scan-reports/
+          mv backend1-scan.html scan-reports/
+          mv backend2-scan.html scan-reports/
+
+      - name: Upload scan reports artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports-${{ needs.build-frontend.outputs.new_version }}
+          path: scan-reports/
+
+  deploy-scan-reports:
+    if: github.ref_name == 'main'
+    needs: [build-frontend, trivy-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download scan reports
+        uses: actions/download-artifact@v4
+        with:
+          name: security-scan-reports-${{ needs.build-frontend.outputs.new_version }}
+          path: scan-reports
+
+      - name: Deploy scan reports to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: scan-reports
+          destination_dir: scan
+          keep_files: true  
