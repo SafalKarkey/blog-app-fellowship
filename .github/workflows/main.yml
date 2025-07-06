@@ -389,7 +389,7 @@ jobs:
         with:
           image-ref: 'safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}'
           format: 'template'
-          template: 'contrib/html.tpl'
+          template: '@contrib/html.tpl'
           output: 'frontend-scan.html'
 
       - name: Run Trivy vulnerability scanner on Backend1 image
@@ -397,7 +397,7 @@ jobs:
         with:
           image-ref: 'safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}'
           format: 'template'
-          template: 'contrib/html.tpl'
+          template: '@contrib/html.tpl'
           output: 'backend1-scan.html'
 
       - name: Run Trivy vulnerability scanner on Backend2 image
@@ -405,7 +405,7 @@ jobs:
         with:
           image-ref: 'safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}'
           format: 'template'
-          template: 'contrib/html.tpl'
+          template: '@contrib/html.tpl'
           output: 'backend2-scan.html'
 
       - name: Move scan reports to directory
