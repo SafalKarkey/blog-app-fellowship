@@ -235,28 +235,28 @@ jobs:
           
           echo "All required Dockerfiles found"
 
-  run-pg:
-    needs: [build-frontend, build-backends]
-    if: github.ref_name == 'dev'
-    runs-on: v2
-    steps:
-      - name: Use PostgreSQL Docker images
-        run: |
-          docker rm -f postgres >/dev/null 2>&1 || true
-          docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+  # run-pg:
+  #   needs: [build-frontend, build-backends]
+  #   if: github.ref_name == 'dev'
+  #   runs-on: v2
+  #   steps:
+  #     - name: Use PostgreSQL Docker images
+  #       run: |
+  #         docker rm -f postgres >/dev/null 2>&1 || true
+  #         docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
 
-          docker run -d --rm --init \
-          --name postgres \
-          --network my-backend-network \
-          -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
-          -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
-          -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
-          -v pgdata:/var/lib/postgresql/data \
-          -p 5432:5432 \
-          postgres:latest
+  #         docker run -d --rm --init \
+  #         --name postgres \
+  #         --network my-backend-network \
+  #         -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+  #         -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+  #         -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+  #         -v pgdata:/var/lib/postgresql/data \
+  #         -p 5432:5432 \
+  #         postgres:latest
 
   deploy:
-    needs: [build-frontend, build-backends, run-pg]
+    needs: [build-frontend, build-backends]
     if: github.ref_name == 'dev'
     runs-on: v1
     steps:
@@ -267,6 +267,20 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            echo "Starting postgres.."
+            docker rm -f postgres >/dev/null 2>&1 || true
+            docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+
+            docker run -d --rm --init \
+            --name postgres \
+            --network my-backend-network \
+            -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+            -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+            -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+            -v pgdata:/var/lib/postgresql/data \
+            -p 5432:5432 \
+            postgres:latest
+
             echo "Deploying to server..."
 
             docker stop frontend backend1 backend2 2>/dev/null || true
