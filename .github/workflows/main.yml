@@ -140,7 +140,6 @@ jobs:
               new_version=$(semver bump patch "$latest_version")
             fi
             
-            # Create and push the new tag
             git tag "$new_version"
             git push origin "$new_version"
             
