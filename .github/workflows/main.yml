@@ -64,19 +64,24 @@ jobs:
               echo "Using default version 1.0.0 because no tags were found"
               new_version="1.0.0"
             else
-              new_version=$(semver bump patch "$latest_version")
+              commits=$(git log ${latest_version}..HEAD --oneline)
+              
+              if echo "$commits" | grep -q -E "(BREAKING CHANGE|!:|feat!:|fix!:)"; then
+                new_version=$(semver bump major "$latest_version")
+              elif echo "$commits" | grep -q -E "^[a-f0-9]+ feat:"; then
+                new_version=$(semver bump minor "$latest_version")
+              else
+                new_version=$(semver bump patch "$latest_version")
+              fi
             fi
             
-            # git tag "$new_version"
-            # git push origin "$new_version"
-
             if git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
               echo "Tag $new_version already exists. Skipping tagging."
             else
+              echo "Creating new tag: $new_version"
               git tag "$new_version"
               git push origin "$new_version"
             fi
-
             
           else
             new_version="${{ github.ref_name }}-${{ github.sha }}"
@@ -148,12 +153,21 @@ jobs:
               echo "Using default version 1.0.0 because no tags were found"
               new_version="1.0.0"
             else
-              new_version=$(semver bump patch "$latest_version")
+              commits=$(git log ${latest_version}..HEAD --oneline)
+              
+              if echo "$commits" | grep -q -E "(BREAKING CHANGE|!:|feat!:|fix!:)"; then
+                new_version=$(semver bump major "$latest_version")
+              elif echo "$commits" | grep -q -E "^[a-f0-9]+ feat:"; then
+                new_version=$(semver bump minor "$latest_version")
+              else
+                new_version=$(semver bump patch "$latest_version")
+              fi
             fi
             
             if git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
               echo "Tag $new_version already exists. Skipping tagging."
             else
+              echo "Creating new tag: $new_version"
               git tag "$new_version"
               git push origin "$new_version"
             fi
@@ -365,12 +379,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download Trivy HTML template
+        run: |
+          mkdir -p contrib
+          wget -O contrib/html.tpl https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+
       - name: Run Trivy vulnerability scanner on Frontend image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}'
           format: 'template'
-          template: '@/contrib/html.tpl'
+          template: 'contrib/html.tpl'
           output: 'frontend-scan.html'
 
       - name: Run Trivy vulnerability scanner on Backend1 image
@@ -378,7 +397,7 @@ jobs:
         with:
           image-ref: 'safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}'
           format: 'template'
-          template: '@/contrib/html.tpl'
+          template: 'contrib/html.tpl'
           output: 'backend1-scan.html'
 
       - name: Run Trivy vulnerability scanner on Backend2 image
@@ -386,7 +405,7 @@ jobs:
         with:
           image-ref: 'safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}'
           format: 'template'
-          template: '@/contrib/html.tpl'
+          template: 'contrib/html.tpl'
           output: 'backend2-scan.html'
 
       - name: Move scan reports to directory
