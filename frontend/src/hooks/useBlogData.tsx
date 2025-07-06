@@ -24,10 +24,10 @@ interface BlogComment {
 // BLOG API (localhost:3001)
 
 //
-const BLOG_API = `${import.meta.env.VITE_URL_ADDR}:3001/api/blogs`;
-const COMMENTS_API = `${import.meta.env.VITE_URL_ADDR}:3001/api/comments`;
+const BLOG_API = `http://${import.meta.env.VITE_URL_ADDR}:3001/api/blogs`;
+const COMMENTS_API = `http://${import.meta.env.VITE_URL_ADDR}:3001/api/comments`;
 // USER API (localhost:3000)
-const USER_API = `${import.meta.env.VITE_URL_ADDR}:3000/api/users`; 
+const USER_API = `http://${import.meta.env.VITE_URL_ADDR}:3000/api/users`; 
 
 export function useBlog(id?: string) {
   const [blog, setBlog] = useState<Blog | null>(null);

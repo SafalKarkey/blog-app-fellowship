@@ -24,8 +24,11 @@ import { Link } from "react-router-dom";
 // import { marked } from "marked";
 import { openPreview } from "../util";
 
-const USER_API = `${import.meta.env.VITE_URL_ADDR}:3000/api/users`;
-const BLOG_API = `${import.meta.env.VITE_URL_ADDR}:3001/api/blogs`;
+const USER_API = `http://${import.meta.env.VITE_URL_ADDR}:3000/api/users`;
+const BLOG_API = `http://${import.meta.env.VITE_URL_ADDR}:3001/api/blogs`;
+
+console.log('VITE_URL_ADDR:', import.meta.env.VITE_URL_ADDR);
+console.log('BLOG_API constructed:', BLOG_API);
 
 const generatePreview = async (arg: string) => {
 //     const parser = new DOMParser();
