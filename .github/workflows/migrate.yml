@@ -37,64 +37,37 @@ jobs:
       - name: Run Migrations
         if: github.event.inputs.action == 'migrate'
         run: |
-          cd backend1
-          yarn migrate
+          docker exec backend1 yarn migrate
         
-        env:
-          DB_CLIENT: ${{ vars.DB_CLIENT }}
-          DB_HOST: ${{ vars.DB_HOST }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_USER: ${{ secrets.BACKEND1_DB_USER }}
-          DB_PASSWORD: ${{ secrets.BACKEND1_DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          NODE_ENV: ${{ vars.NODE_ENV }}
-        
-      - name: Rollback Migrations
+      - name: Rollback migration in backend1 container
         if: github.event.inputs.action == 'rollback'
         run: |
-          cd backend1
-          yarn rollback ${{ github.event.inputs.rollback_version }}
-        env:
-          DB_CLIENT: ${{ vars.DB_CLIENT }}
-          DB_HOST: ${{ vars.DB_HOST }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_USER: ${{ secrets.BACKEND1_DB_USER }}
-          DB_PASSWORD: ${{ secrets.BACKEND1_DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          NODE_ENV: ${{ vars.NODE_ENV }}
+          version="${{ github.event.inputs.rollback_version }}"
+          if [ -z "$version" ]; then
+            docker exec backend1 yarn rollback
+          else
+            docker exec backend1 yarn rollback $version
+          fi
   
 
   migrate-backend2:
     if: github.event.inputs.backend == 'backend2' || github.event.inputs.backend == 'both'
     runs-on: migrate-runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
-    steps:    
-      - name: Run Migrations
+    steps:
+      - name: Run migrations
         if: github.event.inputs.action == 'migrate'
         run: |
-          cd backend2
-          yarn migrate
-        env:
-          DB_CLIENT: ${{ vars.DB_CLIENT }}
-          DB_HOST: ${{ vars.DB_HOST }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_USER: ${{ secrets.BACKEND2_DB_USER }}
-          DB_PASSWORD: ${{ secrets.BACKEND2_DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          NODE_ENV: ${{ vars.NODE_ENV }}
-          
-      - name: Rollback Migrations
+          docker exec backend2 yarn migrate
+
+      - name: Rollback migration in backend2 container
         if: github.event.inputs.action == 'rollback'
         run: |
-          cd backend2
-          yarn rollback ${{ github.event.inputs.rollback_version }}
-        env:
-          DB_CLIENT: ${{ vars.DB_CLIENT }}
-          DB_HOST: ${{ vars.DB_HOST }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_USER: ${{ secrets.BACKEND2_DB_USER }}
-          DB_PASSWORD: ${{ secrets.BACKEND2_DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          NODE_ENV: ${{ vars.NODE_ENV }}
+          version="${{ github.event.inputs.rollback_version }}"
+          if [ -z "$version" ]; then
+            docker exec backend2 yarn rollback
+          else
+            docker exec backend2 yarn rollback $version
+          fi
           
 
