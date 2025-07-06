@@ -20,6 +20,7 @@ app.use(cors());
 app.use(appRouter);
 
 app.use(notFound);
+// Error middlewares (4 parameters) must come after notFound
 app.use(errorLogMiddle);
 app.use(errorHandler);
 // errorLogger.error('Test error')

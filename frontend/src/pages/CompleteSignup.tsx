@@ -14,7 +14,7 @@ import axios from "axios";
 
 //const USER_API = "http://192.168.16.103:3000/api/users";
 
-const USER_API = `${import.meta.env.VITE_URL_ADDR}/api/users`;
+const USER_API = `${import.meta.env.VITE_URL_ADDR}:3000/api/users`;
 
 const CompleteSignup: React.FC = () => {
   const [firstName, setFirstName] = useState("");
