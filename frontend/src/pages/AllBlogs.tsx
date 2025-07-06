@@ -16,8 +16,12 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import { useAllBlogs } from "../hooks/useBlogData";
 
+const latestVersion = import.meta.env.VITE_APP_VERSION || "unknown";
+
+
 const AllBlogs: React.FC = () => {
     const { blogs, loading, error } = useAllBlogs();
+
 
     return (
         <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5" }}>
@@ -39,8 +43,39 @@ const AllBlogs: React.FC = () => {
                     >
                         Create Blog
                     </Button>
+
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        href={`/blog-app-fellowship/docker-images/frontend-${latestVersion}.tar`}
+                        download
+                        sx={{ ml: 2 }}
+                    >
+                        Download Frontend Docker Image
+                    </Button>
+
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        href={`/blog-app-fellowship/docker-images/backend1-${latestVersion}.tar`}
+                        download
+                        sx={{ ml: 2 }}
+                    >
+                        Download Backend1 Docker Image
+                    </Button>
+
+                    <Button
+                        variant="outlined"
+                        color="inherit"
+                        href={`/blog-app-fellowship/docker-images/backend2-${latestVersion}.tar`}
+                        download
+                        sx={{ ml: 2 }}
+                    >
+                        Download Backend2 Docker Image
+                    </Button>
                 </Toolbar>
             </AppBar>
+
 
             {/* Body */}
             <Container maxWidth="lg" sx={{ mt: 4 }}>
