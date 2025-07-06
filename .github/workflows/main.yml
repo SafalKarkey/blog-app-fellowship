@@ -37,7 +37,7 @@ jobs:
 
 
   build-frontend:
-    if: github.event_name == 'push' && needs.changes.outputs.frontend == 'true' # if this condition is true, run this job otherwise skip it
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || needs.changes.outputs.frontend == 'true')  # if this condition is true, run this job otherwise skip it
     needs: changes
     runs-on: v1  # frontend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
@@ -110,7 +110,7 @@ jobs:
           docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
 
   build-backends:
-    if: github.event_name == 'push' && needs.changes.outputs.backend == 'true'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || needs.changes.outputs.backend == 'true')
     needs: changes
     runs-on: v2   # backend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
