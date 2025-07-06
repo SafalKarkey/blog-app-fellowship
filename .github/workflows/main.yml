@@ -101,6 +101,7 @@ jobs:
 
       - name: Build Frontend App
         env:
+          VITE_APP_VERSION: ${{ steps.get-version.outputs.new_version }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_URL_ADDR: ${{ vars.VITE_URL_ADDR }}
         run: |
@@ -124,6 +125,23 @@ jobs:
             -t safalkarki/frontend:${{ steps.get-version.outputs.new_version }} ./frontend
 
           docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
+
+      - name: Export Frontend Docker Image
+        run: |
+          mkdir -p docker-exports
+          docker save safalkarki/frontend:${{ steps.get-version.outputs.new_version }} -o docker-exports/frontend-${{ steps.get-version.outputs.new_version }}.tar
+      
+      - name: Copy Docker image export to frontend dist folder
+        run: |
+          mkdir -p frontend/dist/docker-images
+          cp docker-exports/frontend-${{ steps.get-version.outputs.new_version }}.tar frontend/dist/docker-images/
+
+          
+      - name: Upload Frontend Docker Image Export
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-docker-image-${{ steps.get-version.outputs.new_version }}
+          path: docker-exports/frontend-${{ steps.get-version.outputs.new_version }}.tar
 
   build-backends:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || needs.changes.outputs.backend == 'true')
@@ -215,6 +233,24 @@ jobs:
         run: |
           docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.get-version.outputs.new_version }} ./backend2
           docker push safalkarki/backend2:${{ steps.get-version.outputs.new_version }}
+
+      - name: Export Backend Docker Images
+        run: |
+          mkdir -p docker-exports
+          docker save safalkarki/backend1:${{ steps.get-version.outputs.new_version }} -o docker-exports/backend1-${{ steps.get-version.outputs.new_version }}.tar
+          docker save safalkarki/backend2:${{ steps.get-version.outputs.new_version }} -o docker-exports/backend2-${{ steps.get-version.outputs.new_version }}.tar
+
+      - name: Copy Backend Docker image export to frontend dist folder
+        run: |
+          mkdir -p frontend/dist/docker-images
+          cp docker-exports/backend1-${{ steps.get-version.outputs.new_version }}.tar frontend/dist/docker-images/
+          cp docker-exports/backend2-${{ steps.get-version.outputs.new_version }}.tar frontend/dist/docker-images/
+
+      - name: Upload Backend Docker Image Exports
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-docker-images-${{ steps.get-version.outputs.new_version }}
+          path: docker-exports/
 
   pr-checks:
     if: github.event_name == 'pull_request'
