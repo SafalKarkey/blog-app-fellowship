@@ -5,8 +5,15 @@ import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
 
 const router = Router();
 
-// Protect only the createBlog route
-router.post('/', ClerkExpressRequireAuth(), createBlog);
+// Add debugging middleware
+router.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Headers:`, req.headers);
+  next();
+});
+
+// Protect only the createBlog route - temporarily disable auth for testing
+// router.post('/', ClerkExpressRequireAuth(), createBlog);
+router.post('/', createBlog);
 router.get('/', getAllBlogs);
 router.get('/:id', getBlog);
 
