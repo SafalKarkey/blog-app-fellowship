@@ -1,0 +1,100 @@
+name: Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Migration action'
+        required: true
+        default: 'migrate'
+        type: choice
+        options:
+          - migrate
+          - rollback
+      
+      backend:
+        description: 'Select backend'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - backend1
+          - backend2
+          - both
+        
+      rollback_version:
+        description: 'Which version to rollback to'
+        required: false
+        type: string
+    
+
+jobs:
+  migrate-backend1:
+    if: ${{ github.event.inputs.backend == 'backend1' || github.event.inputs.backend == 'both' }}
+    runs-on: v1
+    environment: ${{ github.ref_name == 'main' && 'dev' }}
+    steps:
+      - name: Run Migrations
+        if: github.event.inputs.action == 'migrate'
+        run: |
+          cd backend1
+          yarn migrate
+        
+        env:
+          DB_CLIENT: ${{ vars.DB_CLIENT }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_USER: ${{ secrets.BACKEND1_DB_USER }}
+          DB_PASSWORD: ${{ secrets.BACKEND1_DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          NODE_ENV: ${{ vars.NODE_ENV }}
+        
+      - name: Rollback Migrations
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          cd backend1
+          yarn rollback ${{ github.event.inputs.rollback_version }}
+        env:
+          DB_CLIENT: ${{ vars.DB_CLIENT }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_USER: ${{ secrets.BACKEND1_DB_USER }}
+          DB_PASSWORD: ${{ secrets.BACKEND1_DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          NODE_ENV: ${{ vars.NODE_ENV }}
+  
+
+  migrate-backend2:
+    if: github.event.inputs.backend == 'backend2' || github.event.inputs.backend == 'both'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
+    steps:    
+      - name: Run Migrations
+        if: github.event.inputs.action == 'migrate'
+        run: |
+          cd backend2
+          yarn migrate
+        env:
+          DB_CLIENT: ${{ vars.DB_CLIENT }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_USER: ${{ secrets.BACKEND2_DB_USER }}
+          DB_PASSWORD: ${{ secrets.BACKEND2_DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          NODE_ENV: ${{ vars.NODE_ENV }}
+          
+      - name: Rollback Migrations
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          cd backend2
+          yarn rollback ${{ github.event.inputs.rollback_version }}
+        env:
+          DB_CLIENT: ${{ vars.DB_CLIENT }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_USER: ${{ secrets.BACKEND2_DB_USER }}
+          DB_PASSWORD: ${{ secrets.BACKEND2_DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          NODE_ENV: ${{ vars.NODE_ENV }}
+          
+

@@ -235,8 +235,27 @@ jobs:
           
           echo "All required Dockerfiles found"
 
-  deploy:
+  run-pg:
     needs: [build-frontend, build-backends]
+    if: github.ref_name == 'dev'
+    runs-on: v2
+    steps:
+      - name: Use PostgreSQL Docker images
+        run: |
+          docker network inspect my-backend-network >/dev/null 2>&1 || docker network create my-backend-network
+
+          docker run --rm --init \
+          --name postgres \
+          --network my-backend-network \
+          -e POSTGRES_USER=${{ secrets.POSTGRES_USER }} \
+          -e POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }} \
+          -e POSTGRES_DB=${{ secrets.POSTGRES_DB }} \
+          -v pgdata:/var/lib/postgresql/data \
+          -p 5432:5432 \
+          postgres:latest
+
+  deploy:
+    needs: [build-frontend, build-backends, run-pg]
     if: github.ref_name == 'dev'
     runs-on: v1
     steps:
