@@ -388,8 +388,8 @@ jobs:
         - name: Download backend artifacts
           uses: actions/download-artifact@v4
           with:
-            name: backend-docker-images-${{ steps.get-version.outputs.new_version }}
-            path: docker-artifacts/backend     
+            name: backend-docker-images-${{ needs.build-backends.outputs.new_version }}
+            path: docker-artifacts/backend
 
         - name: Create GitHub Release
           uses: softprops/action-gh-release@v1
