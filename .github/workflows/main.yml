@@ -382,7 +382,7 @@ jobs:
         - name: Download frontend artifact
           uses: actions/download-artifact@v4
           with:
-            name: frontend-build-${{ needs.build-frontend.outputs.new_version }}
+            name: frontend-docker-image-${{ needs.build-frontend.outputs.new_version }}
             path: docker-artifacts/frontend
 
         - name: Download backend artifacts
