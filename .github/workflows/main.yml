@@ -445,6 +445,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: DockerHub Login for scanning
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_UNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWD }}
+
+      - name: Pull Docker images for scanning
+        run: |
+          echo "Pulling images for security scanning..."
+          docker pull safalkarki/frontend:${{ needs.build-frontend.outputs.new_version }}
+          docker pull safalkarki/backend1:${{ needs.build-backends.outputs.new_version }}
+          docker pull safalkarki/backend2:${{ needs.build-backends.outputs.new_version }}
+
       - name: Download Trivy HTML template
         run: |
           mkdir -p contrib
