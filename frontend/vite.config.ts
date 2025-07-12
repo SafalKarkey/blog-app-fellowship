@@ -1,25 +1,28 @@
-// import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import dotenv from 'dotenv';
 
-// const base = import.meta.env.VITE_BASE_PATH || '/';
+dotenv.config()
 
-// // https://vite.dev/config/
-// export default defineConfig({
-//   base,
-//   plugins: [react()],
-// })
+const base = process.env.VITE_BASE_PATH || '/';
 
-import { defineConfig, loadEnv, ConfigEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import type { ConfigEnv } from 'vite';
+// https://vite.dev/config/
+export default defineConfig({
+  base,
+  plugins: [react()],
+})
 
-export default ({ mode }: ConfigEnv) => {
-  const env = loadEnv(mode, process.cwd(), '');
+// import { defineConfig, loadEnv, ConfigEnv } from 'vite';
+// import react from '@vitejs/plugin-react';
+// import type { ConfigEnv } from 'vite';
 
-  return defineConfig({
-    base: env.VITE_BASE_PATH || '/',
-    plugins: [react()],
-  });
-};
+// export default ({ mode }: ConfigEnv) => {
+//   const env = loadEnv(mode, process.cwd(), '');
+
+//   return defineConfig({
+//     base: env.VITE_BASE_PATH || '/',
+//     plugins: [react()],
+//   });
+// };
 
 
