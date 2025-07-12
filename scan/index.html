@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Security Scan Reports</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .scan-section { background-color: #fff; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 5px; }
+        .btn { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 3px; margin-right: 10px; }
+        .btn:hover { background-color: #0056b3; }
+        .trivy-btn { background-color: #28a745; }
+        .semgrep-btn { background-color: #17a2b8; }
+        .timestamp { color: #6c757d; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Security Scan Reports</h1>
+        <p class="timestamp">Generated: $(date -u)</p>
+        <p>Automated security scanning results for the blog-app-fellowship project</p>
+    </div>
+    
+    <div class="scan-section">
+        <h2>Available Scan Reports</h2>
+        <p>Click the links below to view detailed security scan reports:</p>
+        
+        <h3>Trivy Vulnerability Scans</h3>
+        <p>Container image vulnerability scanning results:</p>
+        <a href="trivy/frontend-scan.html" class="btn trivy-btn">Frontend Image Scan</a>
+        <a href="trivy/backend1-scan.html" class="btn trivy-btn">Backend1 Image Scan</a>
+        <a href="trivy/backend2-scan.html" class="btn trivy-btn">Backend2 Image Scan</a>
+        
+        <h3>Semgrep Code Analysis</h3>
+        <p>Static code analysis for security vulnerabilities:</p>
+        <a href="semgrep/semgrep.html" class="btn semgrep-btn">Code Security Scan</a>
+        <a href="semgrep/semgrep.txt" class="btn semgrep-btn">Raw Text Report</a>
+        <a href="semgrep/semgrep.json" class="btn semgrep-btn">JSON Report</a>
+    </div>
+    
+    <div class="scan-section">
+        <h2 About These Scans</h2>
+        <ul>
+            <li><strong>Trivy:</strong> Scans Docker images for known vulnerabilities in OS packages and dependencies</li>
+            <li><strong>Semgrep:</strong> Performs static analysis to find security vulnerabilities in source code</li>
+        </ul>
+        <p><em>These scans run automatically on every push to the main branch.</em></p>
+    </div>
+</body>
+</html>
