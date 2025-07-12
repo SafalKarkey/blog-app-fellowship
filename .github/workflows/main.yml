@@ -107,6 +107,7 @@ jobs:
           VITE_BASE_PATH: /blog-app-fellowship/
         run: |
           yarn --cwd frontend install --network-timeout 600000
+          yarn add @types/node
           yarn --cwd frontend build 
 
       - name: Upload Frontend Build Artifacts
