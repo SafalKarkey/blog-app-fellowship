@@ -106,7 +106,7 @@ jobs:
           VITE_URL_ADDR: ${{ vars.VITE_URL_ADDR }}
           VITE_BASE_PATH: /blog-app-fellowship/
         run: |
-          yarn --cwd frontend install --network-timeout 600000
+          yarn --cwd frontend install --network-timeout 600000 
           yarn add @types/node
           yarn --cwd frontend build 
 
@@ -126,7 +126,14 @@ jobs:
             -f ./frontend/frontend.Dockerfile \
             -t safalkarki/frontend:${{ steps.get-version.outputs.new_version }} ./frontend
 
-          docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
+          # docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
+          n=0
+          until [ $n -ge 5 ]; do
+            docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }} && break
+            n=$((n+1))
+            echo "Push failed, retrying ($n)..."
+            sleep 5
+          done
 
       - name: Export Frontend Docker Image
         run: |
@@ -229,12 +236,25 @@ jobs:
         # if: steps.cache-backend-build.outputs.cache-hit != 'true'
         run: |
           docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.get-version.outputs.new_version }} ./backend1
-          docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }}
+          n=0
+          until [ $n -ge 5 ]; do
+            docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }} && break
+            n=$((n+1))
+            echo "Push failed, retrying ($n)..."
+            sleep 5
+          done
+          # docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }}
 
       - name: Build and Push Backend2
         run: |
           docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.get-version.outputs.new_version }} ./backend2
-          docker push safalkarki/backend2:${{ steps.get-version.outputs.new_version }}
+          n=0
+          until [ $n -ge 5 ]; do
+            docker push safalkarki/backend2:${{ steps.get-version.outputs.new_version }} && break
+            n=$((n+1))
+            echo "Push failed, retrying ($n)..."
+            sleep 5
+          done
 
       - name: Export Backend Docker Images
         run: |
