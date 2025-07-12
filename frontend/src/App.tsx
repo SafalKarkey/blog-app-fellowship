@@ -9,6 +9,7 @@ import { CssBaseline, ThemeProvider, createTheme, Box, Typography, Button } from
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const theme = createTheme();
 
+const basename_of_page = process.env.VITE_BASE_PATH || '/';
 
 function App() {
   return (
@@ -16,7 +17,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Box sx={{ minHeight: "100vh", width: '100%', bgcolor: "#f5f5f5" }}>
-          <Router basename="/blog-app-fellowship">
+          <Router basename={basename_of_page}>
             <Routes>
               <Route path="/" element={<Navigate to="/blogs" replace />} />
               <Route path="/blogs" element={<AllBlogs />} />

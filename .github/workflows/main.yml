@@ -104,6 +104,7 @@ jobs:
           VITE_APP_VERSION: ${{ steps.get-version.outputs.new_version }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_URL_ADDR: ${{ vars.VITE_URL_ADDR }}
+          VITE_BASE_PATH: /blog-app-fellowship/
         run: |
           yarn --cwd frontend install --network-timeout 600000
           yarn --cwd frontend build 
@@ -382,7 +383,7 @@ jobs:
         - name: Download frontend artifact
           uses: actions/download-artifact@v4
           with:
-            name: frontend-build-${{ needs.build-frontend.outputs.new_version }}
+            name: frontend-docker-image-${{ needs.build-frontend.outputs.new_version }}
             path: docker-artifacts/frontend
 
         - name: Download backend artifacts
@@ -471,6 +472,29 @@ jobs:
         with:
           name: security-scan-reports-${{ needs.build-frontend.outputs.new_version }}
           path: scan-reports/
+
+  semgrep-scan:
+    needs: [build-frontend, build-backends]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep scan
+        run: |
+          python -m pip install semgrep
+          semgrep scan --text --text-output=semgrep.txt
+
+      - name: Move to directory
+        run: |
+            mkdir -p scan-reports
+            mv semgrep.txt scan-reports/
+
+      - name: Upload Semgrep scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-scan-results-${{ needs.build-frontend.outputs.new_version }}
+          path: scan-reports/
+
+
 
   deploy-scan-reports:
     if: github.ref_name == 'main'
