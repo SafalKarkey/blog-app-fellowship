@@ -21,7 +21,7 @@ jobs:
   # Centralized version management to avoid conflicts
   versioning:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: v1
     outputs:
       new_version: ${{ steps.get-version.outputs.new_version }}
     steps:
