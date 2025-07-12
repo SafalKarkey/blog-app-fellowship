@@ -1,28 +1,27 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv, ConfigEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import dotenv from 'dotenv';
-
-dotenv.config()
-
-const base = process.env.VITE_BASE_PATH || '/';
 
 // https://vite.dev/config/
-export default defineConfig({
-  base,
-  plugins: [react()],
+export default defineConfig(({ command, mode }: ConfigEnv) => {
+  // Load env file based on `mode` in the current working directory.
+  // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
+  const env = loadEnv(mode, process.cwd(), '')
+  
+  return {
+    base: env.VITE_BASE_PATH || '/',
+    plugins: [react()],
+    // Optional: Configure server for development
+    server: {
+      port: 5173,
+      host: true, // Allow external connections
+    },
+    // Optional: Configure build output
+    // build: {
+    //   outDir: 'dist',
+    //   assetsDir: 'assets',
+    //   sourcemap: command === 'serve', // Source maps only in dev
+    // },
+  }
 })
-
-// import { defineConfig, loadEnv, ConfigEnv } from 'vite';
-// import react from '@vitejs/plugin-react';
-// import type { ConfigEnv } from 'vite';
-
-// export default ({ mode }: ConfigEnv) => {
-//   const env = loadEnv(mode, process.cwd(), '');
-
-//   return defineConfig({
-//     base: env.VITE_BASE_PATH || '/',
-//     plugins: [react()],
-//   });
-// };
 
 

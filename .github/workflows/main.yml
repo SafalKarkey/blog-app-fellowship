@@ -18,6 +18,52 @@ on:
       - '.github/workflows/**'
 
 jobs:
+  # Centralized version management to avoid conflicts
+  versioning:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.get-version.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: get-version
+        run: |
+          git fetch --tags
+          latest_version=$(git tag --sort=-version:refname | head -n 1)
+          
+          if [ -z "$latest_version" ]; then
+            echo "Using default version 1.0.0 because no tags were found"
+            new_version="1.0.0"
+          else
+            commits=$(git log ${latest_version}..HEAD --oneline)
+            
+            if echo "$commits" | grep -q -E "(BREAKING CHANGE|!:|feat!:|fix!:)"; then
+              new_version=$(semver bump major "$latest_version")
+            elif echo "$commits" | grep -q -E "^[a-f0-9]+ feat:"; then
+              new_version=$(semver bump minor "$latest_version")
+            else
+              new_version=$(semver bump patch "$latest_version")
+            fi
+          fi
+          
+          # Check if tag already exists
+          if git tag -l | grep -q "^$new_version$" || git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
+            echo "Tag $new_version already exists. Using existing version."
+          else
+            echo "Creating new tag: $new_version"
+            git tag "$new_version"
+            if ! git push origin "$new_version" 2>/dev/null; then
+              echo "Failed to push tag (might already exist). Continuing with existing version."
+            fi
+          fi
+          
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "Using version: $new_version"
+
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -38,11 +84,11 @@ jobs:
 
   build-frontend:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || needs.changes.outputs.frontend == 'true')  # if this condition is true, run this job otherwise skip it
-    needs: changes
+    needs: [changes, versioning]
     runs-on: v1  # frontend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     outputs:
-      new_version: ${{ steps.get-version.outputs.new_version }}
+      new_version: ${{ needs.versioning.outputs.new_version || steps.dev-version.outputs.new_version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,42 +99,24 @@ jobs:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
-      - name: Get version
-        id: get-version
+      - name: Get development version
+        id: dev-version
+        if: github.ref_name != 'main'
+        run: |
+          new_version="${{ github.ref_name }}-${{ github.sha }}"
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "Using development version: $new_version"
+
+      - name: Set final version
+        id: final-version
         run: |
           if [ "${{ github.ref_name }}" == "main" ]; then
-            git fetch --tags
-            latest_version=$(git tag --sort=-version:refname | head -n 1)
-            
-            if [ -z "$latest_version" ]; then
-              echo "Using default version 1.0.0 because no tags were found"
-              new_version="1.0.0"
-            else
-              commits=$(git log ${latest_version}..HEAD --oneline)
-              
-              if echo "$commits" | grep -q -E "(BREAKING CHANGE|!:|feat!:|fix!:)"; then
-                new_version=$(semver bump major "$latest_version")
-              elif echo "$commits" | grep -q -E "^[a-f0-9]+ feat:"; then
-                new_version=$(semver bump minor "$latest_version")
-              else
-                new_version=$(semver bump patch "$latest_version")
-              fi
-            fi
-            
-            if git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
-              echo "Tag $new_version already exists. Skipping tagging."
-            else
-              echo "Creating new tag: $new_version"
-              git tag "$new_version"
-              git push origin "$new_version"
-            fi
-            
+            version="${{ needs.versioning.outputs.new_version }}"
           else
-            new_version="${{ github.ref_name }}-${{ github.sha }}"
+            version="${{ steps.dev-version.outputs.new_version }}"
           fi
-          
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
-          echo "Using version: $new_version"
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Final version: $version"
         
       - name: Cache Frontend Build
         id: cache-frontend-build
@@ -101,7 +129,7 @@ jobs:
 
       - name: Build Frontend App
         env:
-          VITE_APP_VERSION: ${{ steps.get-version.outputs.new_version }}
+          VITE_APP_VERSION: ${{ steps.final-version.outputs.version }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_URL_ADDR: ${{ vars.VITE_URL_ADDR }}
           VITE_BASE_PATH: /blog-app-fellowship/
@@ -113,23 +141,20 @@ jobs:
       - name: Upload Frontend Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-build-${{ steps.get-version.outputs.new_version }}
+          name: frontend-build-${{ steps.final-version.outputs.version }}
           path: frontend/dist/
 
-
       - name: Build and Push Frontend
-        # if: steps.cache-frontend-build.outputs.cache-hit != 'true'
         run: |
           docker build \
             --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ vars.VITE_CLERK_PUBLISHABLE_KEY }} \
             --build-arg VITE_URL_ADDR=${{ vars.VITE_URL_ADDR }} \
             -f ./frontend/frontend.Dockerfile \
-            -t safalkarki/frontend:${{ steps.get-version.outputs.new_version }} ./frontend
+            -t safalkarki/frontend:${{ steps.final-version.outputs.version }} ./frontend
 
-          # docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }}
           n=0
           until [ $n -ge 5 ]; do
-            docker push safalkarki/frontend:${{ steps.get-version.outputs.new_version }} && break
+            docker push safalkarki/frontend:${{ steps.final-version.outputs.version }} && break
             n=$((n+1))
             echo "Push failed, retrying ($n)..."
             sleep 5
@@ -138,27 +163,26 @@ jobs:
       - name: Export Frontend Docker Image
         run: |
           mkdir -p docker-exports
-          docker save safalkarki/frontend:${{ steps.get-version.outputs.new_version }} -o docker-exports/frontend-${{ steps.get-version.outputs.new_version }}.tar
+          docker save safalkarki/frontend:${{ steps.final-version.outputs.version }} -o docker-exports/frontend-${{ steps.final-version.outputs.version }}.tar
       
       - name: Copy Docker image export to frontend dist folder
         run: |
           mkdir -p frontend/dist/docker-images
-          cp docker-exports/frontend-${{ steps.get-version.outputs.new_version }}.tar frontend/dist/docker-images/
+          cp docker-exports/frontend-${{ steps.final-version.outputs.version }}.tar frontend/dist/docker-images/
 
-          
       - name: Upload Frontend Docker Image Export
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-docker-image-${{ steps.get-version.outputs.new_version }}
-          path: docker-exports/frontend-${{ steps.get-version.outputs.new_version }}.tar
+          name: frontend-docker-image-${{ steps.final-version.outputs.version }}
+          path: docker-exports/frontend-${{ steps.final-version.outputs.version }}.tar
 
   build-backends:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || needs.changes.outputs.backend == 'true')
-    needs: changes
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true')
+    needs: [changes, versioning]
     runs-on: v2   # backend runner
     environment: ${{ github.ref_name == 'main' && 'production' || 'development' }}
     outputs:
-      new_version: ${{ steps.get-version.outputs.new_version }}
+      new_version: ${{ needs.versioning.outputs.new_version }}
 
     steps:
       - uses: actions/checkout@v3
@@ -169,42 +193,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_UNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWD }}
 
-      - name: Get version
-        id: get-version
+      - name: Set version from versioning job
+        id: set-version
         run: |
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            git fetch --tags
-            latest_version=$(git tag --sort=-version:refname | head -n 1)
-            
-            if [ -z "$latest_version" ]; then
-              echo "Using default version 1.0.0 because no tags were found"
-              new_version="1.0.0"
-            else
-              commits=$(git log ${latest_version}..HEAD --oneline)
-              
-              if echo "$commits" | grep -q -E "(BREAKING CHANGE|!:|feat!:|fix!:)"; then
-                new_version=$(semver bump major "$latest_version")
-              elif echo "$commits" | grep -q -E "^[a-f0-9]+ feat:"; then
-                new_version=$(semver bump minor "$latest_version")
-              else
-                new_version=$(semver bump patch "$latest_version")
-              fi
-            fi
-            
-            if git ls-remote --tags origin | grep -q "refs/tags/$new_version"; then
-              echo "Tag $new_version already exists. Skipping tagging."
-            else
-              echo "Creating new tag: $new_version"
-              git tag "$new_version"
-              git push origin "$new_version"
-            fi
-            
-          else
-            new_version="${{ github.ref_name }}-${{ github.sha }}"
-          fi
-          
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
-          echo "Using version: $new_version"
+          echo "Using version from versioning job: ${{ needs.versioning.outputs.new_version }}"
+          echo "new_version=${{ needs.versioning.outputs.new_version }}" >> $GITHUB_OUTPUT
       
       - name: Cache Backend Build
         id: cache-backend-build
@@ -227,7 +220,7 @@ jobs:
       - name: Upload Backend Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: backend-build-${{ steps.get-version.outputs.new_version }}
+          name: backend-build-${{ needs.versioning.outputs.new_version }}
           path: |
             backend1/dist/
             backend2/dist/
@@ -235,22 +228,21 @@ jobs:
       - name: Build and Push Backend1
         # if: steps.cache-backend-build.outputs.cache-hit != 'true'
         run: |
-          docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ steps.get-version.outputs.new_version }} ./backend1
+          docker build -f ./backend1/backend1.Dockerfile -t safalkarki/backend1:${{ needs.versioning.outputs.new_version }} ./backend1
           n=0
           until [ $n -ge 5 ]; do
-            docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }} && break
+            docker push safalkarki/backend1:${{ needs.versioning.outputs.new_version }} && break
             n=$((n+1))
             echo "Push failed, retrying ($n)..."
             sleep 5
           done
-          # docker push safalkarki/backend1:${{ steps.get-version.outputs.new_version }}
 
       - name: Build and Push Backend2
         run: |
-          docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ steps.get-version.outputs.new_version }} ./backend2
+          docker build -f ./backend2/backend2.Dockerfile -t safalkarki/backend2:${{ needs.versioning.outputs.new_version }} ./backend2
           n=0
           until [ $n -ge 5 ]; do
-            docker push safalkarki/backend2:${{ steps.get-version.outputs.new_version }} && break
+            docker push safalkarki/backend2:${{ needs.versioning.outputs.new_version }} && break
             n=$((n+1))
             echo "Push failed, retrying ($n)..."
             sleep 5
@@ -259,19 +251,19 @@ jobs:
       - name: Export Backend Docker Images
         run: |
           mkdir -p docker-exports
-          docker save safalkarki/backend1:${{ steps.get-version.outputs.new_version }} -o docker-exports/backend1-${{ steps.get-version.outputs.new_version }}.tar
-          docker save safalkarki/backend2:${{ steps.get-version.outputs.new_version }} -o docker-exports/backend2-${{ steps.get-version.outputs.new_version }}.tar
+          docker save safalkarki/backend1:${{ needs.versioning.outputs.new_version }} -o docker-exports/backend1-${{ needs.versioning.outputs.new_version }}.tar
+          docker save safalkarki/backend2:${{ needs.versioning.outputs.new_version }} -o docker-exports/backend2-${{ needs.versioning.outputs.new_version }}.tar
 
       - name: Copy Backend Docker image export to frontend dist folder
         run: |
           mkdir -p frontend/dist/docker-images
-          cp docker-exports/backend1-${{ steps.get-version.outputs.new_version }}.tar frontend/dist/docker-images/
-          cp docker-exports/backend2-${{ steps.get-version.outputs.new_version }}.tar frontend/dist/docker-images/
+          cp docker-exports/backend1-${{ needs.versioning.outputs.new_version }}.tar frontend/dist/docker-images/
+          cp docker-exports/backend2-${{ needs.versioning.outputs.new_version }}.tar frontend/dist/docker-images/
 
       - name: Upload Backend Docker Image Exports
         uses: actions/upload-artifact@v4
         with:
-          name: backend-docker-images-${{ steps.get-version.outputs.new_version }}
+          name: backend-docker-images-${{ needs.versioning.outputs.new_version }}
           path: docker-exports/
 
   pr-checks:
