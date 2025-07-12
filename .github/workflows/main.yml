@@ -72,6 +72,8 @@ jobs:
       backend: ${{ steps.changes.outputs.backend }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v2
         id: changes
         with:
@@ -501,40 +503,220 @@ jobs:
           path: scan-reports/
 
   semgrep-scan:
-    needs: [build-frontend, build-backends]
+    if: github.ref_name == 'main' && (needs.build-frontend.result == 'success' || needs.build-backends.result == 'success')
+    needs: [changes, build-frontend, build-backends]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run Semgrep scan
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # Get list of changed files
+          if [ "${{ needs.changes.outputs.frontend }}" == "true" ] && [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
+            echo "Both frontend and backend changed, scanning all"
+            echo "scan_paths=frontend/ backend1/ backend2/" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.changes.outputs.frontend }}" == "true" ]; then
+            echo "Only frontend changed, scanning frontend"
+            echo "scan_paths=frontend/" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.changes.outputs.backend }}" == "true" ]; then
+            echo "Only backend changed, scanning backends"
+            echo "scan_paths=backend1/ backend2/" >> $GITHUB_OUTPUT
+          else
+            echo "No relevant changes detected"
+            echo "scan_paths=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Semgrep scan on changed files
+        if: steps.changed-files.outputs.scan_paths != ''
         run: |
           python -m pip install semgrep
-          semgrep scan --text --text-output=semgrep.txt
-
-      - name: Move to directory
-        run: |
-            mkdir -p scan-reports
-            mv semgrep.txt scan-reports/
+          
+          # Create output directory
+          mkdir -p scan-reports
+          
+          # Scan only the changed paths
+          echo "Scanning paths: ${{ steps.changed-files.outputs.scan_paths }}"
+          
+          # Run semgrep with both text and JSON output
+          semgrep scan ${{ steps.changed-files.outputs.scan_paths }} \
+            --text --text-output=scan-reports/semgrep.txt \
+            --json --json-output=scan-reports/semgrep.json \
+            --config=auto || true
+          
+          # Generate HTML report from JSON
+          python3 << 'EOF'
+          import json
+          import html
+          from datetime import datetime
+          
+          try:
+              with open('scan-reports/semgrep.json', 'r') as f:
+                  data = json.load(f)
+          except:
+              data = {"results": []}
+          
+          html_content = f"""
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Semgrep Security Scan Report</title>
+              <style>
+                  body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                  .header {{ background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }}
+                  .summary {{ background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                  .finding {{ background-color: #fff; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; }}
+                  .severity-high {{ border-left: 5px solid #dc3545; }}
+                  .severity-medium {{ border-left: 5px solid #fd7e14; }}
+                  .severity-low {{ border-left: 5px solid #ffc107; }}
+                  .severity-info {{ border-left: 5px solid #17a2b8; }}
+                  .code {{ background-color: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }}
+                  .metadata {{ color: #6c757d; font-size: 0.9em; }}
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>Semgrep Security Scan Report</h1>
+                  <p><strong>Scan Date:</strong> {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+                  <p><strong>Scanned Paths:</strong> ${{ steps.changed-files.outputs.scan_paths }}</p>
+              </div>
+              
+              <div class="summary">
+                  <h2>Summary</h2>
+                  <p><strong>Total Findings:</strong> {len(data.get('results', []))}</p>
+              </div>
+          """
+          
+          if data.get('results'):
+              html_content += "<h2>Findings</h2>"
+              for i, result in enumerate(data['results'], 1):
+                  severity = result.get('extra', {}).get('severity', 'info').lower()
+                  message = html.escape(result.get('extra', {}).get('message', 'No message'))
+                  path = html.escape(result.get('path', 'Unknown'))
+                  rule_id = html.escape(result.get('check_id', 'Unknown'))
+                  
+                  html_content += f"""
+                  <div class="finding severity-{severity}">
+                      <h3>Finding #{i}: {rule_id}</h3>
+                      <p><strong>Severity:</strong> <span style="text-transform: uppercase;">{severity}</span></p>
+                      <p><strong>File:</strong> {path}</p>
+                      <p><strong>Line:</strong> {result.get('start', {}).get('line', 'Unknown')}</p>
+                      <p><strong>Message:</strong> {message}</p>
+                  </div>
+                  """
+          else:
+              html_content += """
+              <div class="summary">
+                  <h2>No Security Issues Found</h2>
+                  <p>Semgrep scan completed successfully with no security findings in the changed files.</p>
+              </div>
+              """
+          
+          html_content += """
+              <div class="metadata">
+                  <hr>
+                  <p><em>Generated by Semgrep Security Scanner</em></p>
+              </div>
+          </body>
+          </html>
+          """
+          
+          with open('scan-reports/semgrep.html', 'w') as f:
+              f.write(html_content)
+          
+          print("HTML report generated successfully")
+          EOF
 
       - name: Upload Semgrep scan results
+        if: steps.changed-files.outputs.scan_paths != ''
         uses: actions/upload-artifact@v4
         with:
-          name: semgrep-scan-results-${{ needs.build-frontend.outputs.new_version }}
+          name: semgrep-scan-results-${{ needs.build-frontend.outputs.new_version || needs.build-backends.outputs.new_version }}
           path: scan-reports/
 
 
 
   deploy-scan-reports:
-    if: github.ref_name == 'main'
-    needs: [build-frontend, trivy-scan]
+    if: github.ref_name == 'main' && (needs.trivy-scan.result == 'success' || needs.semgrep-scan.result == 'success')
+    needs: [build-frontend, build-backends, trivy-scan, semgrep-scan]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download scan reports
+      - name: Create scan reports directory
+        run: mkdir -p scan-reports
+
+      - name: Download Trivy scan reports
+        if: needs.trivy-scan.result == 'success'
         uses: actions/download-artifact@v4
         with:
-          name: security-scan-reports-${{ needs.build-frontend.outputs.new_version }}
-          path: scan-reports
+          name: security-scan-reports-${{ needs.build-frontend.outputs.new_version || needs.build-backends.outputs.new_version }}
+          path: scan-reports/trivy
+        continue-on-error: true
+
+      - name: Download Semgrep scan reports
+        if: needs.semgrep-scan.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: semgrep-scan-results-${{ needs.build-frontend.outputs.new_version || needs.build-backends.outputs.new_version }}
+          path: scan-reports/semgrep
+        continue-on-error: true
+
+      - name: Generate index page
+        run: |
+          cat > scan-reports/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Security Scan Reports</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .header { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+                  .scan-section { background-color: #fff; border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 5px; }
+                  .btn { display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 3px; margin-right: 10px; }
+                  .btn:hover { background-color: #0056b3; }
+                  .trivy-btn { background-color: #28a745; }
+                  .semgrep-btn { background-color: #17a2b8; }
+                  .timestamp { color: #6c757d; font-size: 0.9em; }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>Security Scan Reports</h1>
+                  <p class="timestamp">Generated: $(date -u)</p>
+                  <p>Automated security scanning results for the blog-app-fellowship project</p>
+              </div>
+              
+              <div class="scan-section">
+                  <h2>Available Scan Reports</h2>
+                  <p>Click the links below to view detailed security scan reports:</p>
+                  
+                  <h3>Trivy Vulnerability Scans</h3>
+                  <p>Container image vulnerability scanning results:</p>
+                  <a href="trivy/frontend-scan.html" class="btn trivy-btn">Frontend Image Scan</a>
+                  <a href="trivy/backend1-scan.html" class="btn trivy-btn">Backend1 Image Scan</a>
+                  <a href="trivy/backend2-scan.html" class="btn trivy-btn">Backend2 Image Scan</a>
+                  
+                  <h3>Semgrep Code Analysis</h3>
+                  <p>Static code analysis for security vulnerabilities:</p>
+                  <a href="semgrep/semgrep.html" class="btn semgrep-btn">Code Security Scan</a>
+                  <a href="semgrep/semgrep.txt" class="btn semgrep-btn">Raw Text Report</a>
+                  <a href="semgrep/semgrep.json" class="btn semgrep-btn">JSON Report</a>
+              </div>
+              
+              <div class="scan-section">
+                  <h2 About These Scans</h2>
+                  <ul>
+                      <li><strong>Trivy:</strong> Scans Docker images for known vulnerabilities in OS packages and dependencies</li>
+                      <li><strong>Semgrep:</strong> Performs static analysis to find security vulnerabilities in source code</li>
+                  </ul>
+                  <p><em>These scans run automatically on every push to the main branch.</em></p>
+              </div>
+          </body>
+          </html>
+          EOF
 
       - name: Deploy scan reports to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
